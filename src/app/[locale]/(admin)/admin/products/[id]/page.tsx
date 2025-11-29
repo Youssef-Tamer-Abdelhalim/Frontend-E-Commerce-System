@@ -153,12 +153,12 @@ export default function EditProductPage() {
       setColors(product.colors || []);
     } catch (error) {
       console.error("Failed to fetch product:", error);
-      toast.error("فشل في تحميل المنتج");
+      toast.error(t("loadProductError"));
       router.push("/admin/products");
     } finally {
       setIsLoading(false);
     }
-  }, [productId, isNew, reset, router]);
+  }, [productId, isNew, reset, router, t]);
 
   useEffect(() => {
     fetchProduct();
@@ -194,7 +194,7 @@ export default function EditProductPage() {
 
   const onSubmit = async (data: ProductFormData) => {
     if (!imageCover) {
-      toast.error("صورة الغلاف مطلوبة");
+      toast.error(t("coverImageRequired"));
       return;
     }
 
@@ -211,11 +211,11 @@ export default function EditProductPage() {
 
       if (isNew) {
         await productsApi.create(productData);
-        toast.success("تم إنشاء المنتج بنجاح");
+        toast.success(t("productCreated"));
         router.push("/admin/products");
       } else {
         const response = await productsApi.update(productId, productData);
-        toast.success("تم تحديث المنتج بنجاح");
+        toast.success(t("productUpdated"));
 
         // Update local state with new image URLs from response
         if (response.data) {
@@ -227,7 +227,7 @@ export default function EditProductPage() {
       }
     } catch (error) {
       console.error("Failed to save product:", error);
-      toast.error(isNew ? "فشل في إنشاء المنتج" : "فشل في تحديث المنتج");
+      toast.error(isNew ? t("createProductError") : t("updateProductError"));
     } finally {
       setIsSaving(false);
     }
@@ -257,10 +257,10 @@ export default function EditProductPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">
-            {isNew ? "إضافة منتج جديد" : "تعديل المنتج"}
+            {isNew ? t("addProduct") : t("editProduct")}
           </h1>
           <p className="text-muted-foreground">
-            {isNew ? "أضف منتج جديد للمتجر" : "تعديل بيانات المنتج"}
+            {isNew ? t("addProductDesc") : t("editProductDesc")}
           </p>
         </div>
       </div>
@@ -269,25 +269,27 @@ export default function EditProductPage() {
         {/* Basic Info */}
         <Card>
           <CardHeader>
-            <CardTitle>المعلومات الأساسية</CardTitle>
+            <CardTitle>{t("basicInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-1 block">
-                اسم المنتج *
+                {t("productName")} *
               </label>
               <Input
                 {...register("title")}
-                placeholder="أدخل اسم المنتج"
+                placeholder={t("enterProductName")}
                 error={errors.title?.message}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">الوصف *</label>
+              <label className="text-sm font-medium mb-1 block">
+                {t("description")} *
+              </label>
               <Textarea
                 {...register("description")}
-                placeholder="أدخل وصف المنتج"
+                placeholder={t("enterDescription")}
                 rows={4}
               />
               {errors.description && (
@@ -300,13 +302,13 @@ export default function EditProductPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  الفئة *
+                  {t("category")} *
                 </label>
                 <select
                   {...register("category")}
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
-                  <option value="">اختر الفئة</option>
+                  <option value="">{t("selectCategory")}</option>
                   {categories.map((cat) => (
                     <option key={cat._id} value={cat._id}>
                       {cat.name}
@@ -322,13 +324,13 @@ export default function EditProductPage() {
 
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  العلامة التجارية
+                  {t("brand")}
                 </label>
                 <select
                   {...register("brand")}
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
-                  <option value="">اختر العلامة التجارية</option>
+                  <option value="">{t("selectBrand")}</option>
                   {brands.map((brand) => (
                     <option key={brand._id} value={brand._id}>
                       {brand.name}
@@ -343,13 +345,13 @@ export default function EditProductPage() {
         {/* Pricing */}
         <Card>
           <CardHeader>
-            <CardTitle>التسعير والمخزون</CardTitle>
+            <CardTitle>{t("pricingInventory")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  السعر (دولار) *
+                  {t("price")} ($) *
                 </label>
                 <Input
                   type="number"
@@ -361,7 +363,7 @@ export default function EditProductPage() {
 
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  السعر بعد الخصم
+                  {t("priceAfterDiscount")}
                 </label>
                 <Input
                   type="number"
@@ -372,7 +374,7 @@ export default function EditProductPage() {
 
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  الكمية *
+                  {t("quantity")} *
                 </label>
                 <Input
                   type="number"
@@ -388,13 +390,13 @@ export default function EditProductPage() {
         {/* Images */}
         <Card>
           <CardHeader>
-            <CardTitle>الصور</CardTitle>
+            <CardTitle>{t("images")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Cover Image */}
             <div>
               <label className="text-sm font-medium mb-2 block">
-                صورة الغلاف *
+                {t("coverImage")} *
               </label>
               <div className="flex items-start gap-4">
                 {imageCover && (
@@ -421,7 +423,7 @@ export default function EditProductPage() {
                 <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
                   <Upload className="h-8 w-8 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground mt-1">
-                    رفع صورة
+                    {t("uploadImage")}
                   </span>
                   <input
                     type="file"
@@ -436,7 +438,7 @@ export default function EditProductPage() {
             {/* Additional Images */}
             <div>
               <label className="text-sm font-medium mb-2 block">
-                صور إضافية
+                {t("additionalImages")}
               </label>
               <div className="flex flex-wrap items-start gap-4">
                 {images.map((img, index) => (
@@ -481,7 +483,7 @@ export default function EditProductPage() {
         {/* Colors */}
         <Card>
           <CardHeader>
-            <CardTitle>الألوان المتاحة</CardTitle>
+            <CardTitle>{t("availableColors")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -519,7 +521,7 @@ export default function EditProductPage() {
                 className="w-32"
               />
               <Button type="button" variant="outline" onClick={addColor}>
-                إضافة لون
+                {t("addColor")}
               </Button>
             </div>
           </CardContent>
