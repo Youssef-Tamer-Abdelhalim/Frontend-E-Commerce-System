@@ -152,7 +152,7 @@ export default function AdminOrderDetailsPage() {
                     key={index}
                     className="flex items-center gap-4 p-4 border border-border rounded-lg"
                   >
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-muted shrink-0">
                       <SafeImage
                         src={getImageUrl(
                           typeof item.product === "object" &&
@@ -214,7 +214,6 @@ export default function AdminOrderDetailsPage() {
             <CardContent>
               {order.shippingAddress ? (
                 <div className="space-y-2">
-                  <p className="font-medium">{order.shippingAddress.alias}</p>
                   <p className="text-muted-foreground">
                     {order.shippingAddress.details}
                   </p>
@@ -278,7 +277,9 @@ export default function AdminOrderDetailsPage() {
                     {t("paymentMethod")}
                   </span>
                   <span className="font-medium">
-                    {order.paymentMethodType === "card" ? t("card") : t("cash")}
+                    {order.paymentMethodType === "online"
+                      ? t("card")
+                      : t("cash")}
                   </span>
                 </div>
                 <div className="flex justify-between">

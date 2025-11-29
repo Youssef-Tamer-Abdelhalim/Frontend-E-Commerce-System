@@ -4,9 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useForm, Resolver } from "react-hook-form";
 import { productsApi, categoriesApi, brandsApi } from "@/lib/api";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { getImageUrl } from "@/lib/utils";
@@ -33,17 +31,50 @@ interface Brand {
   name: string;
 }
 
-const productSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().min(20, "Description must be at least 20 characters"),
-  quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
-  price: z.coerce.number().min(1, "Price must be greater than 0"),
-  priceAfterDiscount: z.coerce.number().optional(),
-  category: z.string().min(1, "Category is required"),
-  brand: z.string().optional(),
-});
+interface ProductFormData {
+  title: string;
+  description: string;
+  quantity: number;
+  price: number;
+  priceAfterDiscount?: number;
+  category: string;
+  brand?: string;
+}
 
-type ProductFormData = z.infer<typeof productSchema>;
+// Custom resolver to handle validation
+const productResolver: Resolver<ProductFormData> = async (values) => {
+  const errors: Record<string, { type: string; message: string }> = {};
+
+  if (!values.title || values.title.length < 3) {
+    errors.title = {
+      type: "manual",
+      message: "Title must be at least 3 characters",
+    };
+  }
+  if (!values.description || values.description.length < 20) {
+    errors.description = {
+      type: "manual",
+      message: "Description must be at least 20 characters",
+    };
+  }
+  if (!values.quantity || values.quantity < 1) {
+    errors.quantity = {
+      type: "manual",
+      message: "Quantity must be at least 1",
+    };
+  }
+  if (!values.price || values.price < 1) {
+    errors.price = { type: "manual", message: "Price must be greater than 0" };
+  }
+  if (!values.category) {
+    errors.category = { type: "manual", message: "Category is required" };
+  }
+
+  return {
+    values: Object.keys(errors).length === 0 ? values : {},
+    errors,
+  };
+};
 
 export default function EditProductPage() {
   const params = useParams();
@@ -68,7 +99,7 @@ export default function EditProductPage() {
     reset,
     formState: { errors },
   } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
+    resolver: productResolver,
   });
 
   // Fetch categories and brands
@@ -106,11 +137,15 @@ export default function EditProductPage() {
         category:
           typeof product.category === "string"
             ? product.category
-            : product.category?._id,
+            : product.category && "_id" in product.category
+            ? product.category._id
+            : "",
         brand:
           typeof product.brand === "string"
             ? product.brand
-            : product.brand?._id,
+            : product.brand && "_id" in product.brand
+            ? product.brand._id
+            : undefined,
       });
 
       setImageCover(product.imageCover);

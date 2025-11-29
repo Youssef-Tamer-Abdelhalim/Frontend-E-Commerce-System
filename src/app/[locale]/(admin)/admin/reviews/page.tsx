@@ -122,7 +122,7 @@ export default function AdminReviewsPage() {
                   className="flex items-start gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   {/* User Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium shrink-0">
                     {getInitials(getUserName(review))}
                   </div>
 
@@ -161,7 +161,7 @@ export default function AdminReviewsPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <Button
                       variant="outline"
                       size="icon"

@@ -214,7 +214,7 @@ export default function OrdersPage() {
                     typeof item.product === "object" ? item.product : null;
                   return (
                     <div key={index} className="flex gap-4">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
                         {product && (
                           <SafeImage
                             src={getImageUrl(

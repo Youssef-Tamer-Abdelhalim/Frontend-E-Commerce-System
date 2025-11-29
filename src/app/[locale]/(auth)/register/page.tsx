@@ -68,8 +68,9 @@ export default function RegisterPage() {
         ...(data.phone && { phone: data.phone }),
       };
       const response = await authApi.register(registerData);
-      setToken(response.token);
-      setUser(response.data);
+      const { token, user } = response.data;
+      setToken(token);
+      setUser(user);
       toast.success(t("registerSuccess"));
       router.push("/");
     } catch (error: unknown) {

@@ -70,7 +70,7 @@ export default function CategoriesPage() {
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-0 start-0 end-0 p-4">
                   <h3 className="font-semibold text-white text-center">
                     {category.name}

@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useCartStore } from "@/stores/cartStore";
-import { Button, Card, CardContent } from "@/components/ui";
+import { Button, Card, CardContent, Spinner } from "@/components/ui";
 import { CheckCircle, Package, ArrowRight, Home } from "lucide-react";
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const t = useTranslations();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
@@ -95,5 +95,19 @@ export default function CheckoutSuccessPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-16 flex items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      }
+    >
+      <CheckoutSuccessContent />
+    </Suspense>
   );
 }
