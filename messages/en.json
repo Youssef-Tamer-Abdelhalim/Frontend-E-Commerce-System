@@ -13,7 +13,8 @@
     "sort": "Sort",
     "submit": "Submit",
     "confirm": "Confirm",
-    "linkCopied": "Link copied to clipboard"
+    "linkCopied": "Link copied to clipboard",
+    "noMoreResults": "No more results to load"
   },
   "nav": {
     "home": "Home",
@@ -72,6 +73,9 @@
     "sortRating": "Top Rated",
     "sortBestSelling": "Best Selling",
     "noProducts": "No products found",
+    "applyFilters": "Apply Filters",
+    "loadingMore": "Loading more...",
+    "noMoreProducts": "No more products to load",
     "outOfStock": "Out of Stock",
     "inStock": "In Stock",
     "available": "available",
@@ -168,7 +172,9 @@
     "cash": "Cash on Delivery",
     "online": "Online Payment",
     "paidOn": "Paid on {date}",
-    "deliveredOn": "Delivered on {date}"
+    "deliveredOn": "Delivered on {date}",
+    "loadingMore": "Loading more...",
+    "noMoreOrders": "No more orders to load"
   },
   "wishlist": {
     "title": "My Wishlist",
@@ -308,6 +314,8 @@
     "brandCreated": "Brand created successfully",
     "brandUpdated": "Brand updated successfully",
     "brandDeleted": "Brand deleted successfully",
+    "loadingMore": "Loading more...",
+    "noMoreItems": "No more items to load",
     "reviews": "Reviews",
     "manageReviews": "Manage product reviews",
     "allReviews": "All Reviews",

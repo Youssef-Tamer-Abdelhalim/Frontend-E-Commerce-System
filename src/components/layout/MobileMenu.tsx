@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/stores/authStore";
@@ -30,6 +30,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const t = useTranslations();
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const previousPathname = useRef(pathname);
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -43,9 +44,12 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
     };
   }, [isOpen]);
 
-  // Close menu on route change
+  // Close menu on route change (only when pathname actually changes)
   useEffect(() => {
-    onClose();
+    if (previousPathname.current !== pathname) {
+      previousPathname.current = pathname;
+      onClose();
+    }
   }, [pathname, onClose]);
 
   if (!isOpen) return null;
@@ -70,24 +74,26 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay - click anywhere outside to close */}
       <div
-        className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden"
+        className="fixed inset-0 z-50 bg-black/50 md:hidden"
         onClick={onClose}
       />
 
       {/* Menu Panel */}
       <div
         className={cn(
-          "fixed inset-y-0 start-0 z-50 w-full max-w-xs bg-card shadow-xl md:hidden",
+          "fixed inset-y-0 start-0 z-60 w-full max-w-xs shadow-2xl md:hidden",
+          "bg-background border-e border-border",
           "transform transition-transform duration-300 ease-in-out",
           isOpen
             ? "translate-x-0 rtl:translate-x-0"
             : "-translate-x-full rtl:translate-x-full"
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border bg-background">
           <Link
             href="/"
             className="text-xl font-bold text-primary"
@@ -107,87 +113,100 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
 
         {/* User Info */}
         {isAuthenticated && (
-          <div className="p-4 border-b border-border bg-accent/50">
+          <div className="p-4 border-b border-border bg-muted">
             <p className="font-medium">{user?.name}</p>
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
         )}
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-200px)]">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  pathname === item.href
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-accent"
-                )}
-                onClick={onClose}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
+        {/* Navigation - scrollable area */}
+        <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto bg-background">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                    pathname === item.href
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-muted"
+                  )}
+                  onClick={onClose}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
 
-          {authMenuItems.length > 0 && (
-            <>
-              <div className="my-4 border-t border-border" />
-              {authMenuItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      pathname === item.href
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground hover:bg-accent"
-                    )}
-                    onClick={onClose}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </>
-          )}
-        </nav>
+            {authMenuItems.length > 0 && (
+              <>
+                <div className="my-4 border-t border-border" />
+                {authMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                        pathname === item.href
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground hover:bg-muted"
+                      )}
+                      onClick={onClose}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </>
+            )}
 
-        {/* Footer Actions */}
-        <div className="absolute bottom-0 start-0 end-0 p-4 border-t border-border bg-card">
-          <div className="flex items-center justify-between mb-4">
-            <ThemeToggle />
-            <LanguageSwitcher />
+            {/* Logout button at end of list */}
+            {isAuthenticated && (
+              <>
+                <div className="my-4 border-t border-border" />
+                <button
+                  onClick={() => {
+                    logout();
+                    onClose();
+                  }}
+                  className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors text-destructive hover:bg-destructive/10 w-full"
+                >
+                  <LogOut className="h-5 w-5" />
+                  {t("auth.logout")}
+                </button>
+              </>
+            )}
+
+            {/* Login button for non-authenticated users */}
+            {!isAuthenticated && (
+              <>
+                <div className="my-4 border-t border-border" />
+                <Link
+                  href="/login"
+                  className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={onClose}
+                >
+                  <LogIn className="h-5 w-5" />
+                  {t("auth.login")}
+                </Link>
+              </>
+            )}
+          </nav>
+
+          {/* Footer - Theme & Language only */}
+          <div className="p-4 border-t border-border bg-background">
+            <div className="flex items-center justify-center gap-4">
+              <ThemeToggle />
+              <LanguageSwitcher />
+            </div>
           </div>
-
-          {isAuthenticated ? (
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={() => {
-                logout();
-                onClose();
-              }}
-            >
-              <LogOut className="h-4 w-4 me-2" />
-              {t("auth.logout")}
-            </Button>
-          ) : (
-            <Link href="/login" onClick={onClose}>
-              <Button variant="primary" className="w-full">
-                <LogIn className="h-4 w-4 me-2" />
-                {t("auth.login")}
-              </Button>
-            </Link>
-          )}
         </div>
       </div>
     </>

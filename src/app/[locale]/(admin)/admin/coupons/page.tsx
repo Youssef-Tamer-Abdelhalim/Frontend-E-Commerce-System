@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { couponsApi } from "@/lib/api";
 import { Coupon } from "@/types/coupon";
@@ -10,22 +10,30 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Pagination,
   Skeleton,
   Input,
   Modal,
   Badge,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Ticket, Calendar, Percent } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Ticket,
+  Calendar,
+  Percent,
+  Loader2,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminCouponsPage() {
   const t = useTranslations("admin");
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [formData, setFormData] = useState({
@@ -35,26 +43,88 @@ export default function AdminCouponsPage() {
     expiryDate: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchCoupons = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await couponsApi.getAll({
-        page: currentPage,
-        limit: 10,
-      });
-      setCoupons(response.data);
-      setTotalPages(response.paginationResult?.numberOfPages || 1);
-    } catch (error) {
-      console.error("Failed to fetch coupons:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage]);
+  const fetchCoupons = useCallback(
+    async (page: number, append: boolean = false) => {
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
 
+      try {
+        const response = await couponsApi.getAll({
+          page,
+          limit: 12,
+        });
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setCoupons((prev) => {
+            const existingIds = new Set(prev.map((c) => c._id));
+            const newCoupons = response.data.filter(
+              (c) => !existingIds.has(c._id)
+            );
+            return [...prev, ...newCoupons];
+          });
+        } else {
+          setCoupons(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch coupons:", error);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // Initial load
   useEffect(() => {
-    fetchCoupons();
+    fetchCoupons(1, false);
   }, [fetchCoupons]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchCoupons(nextPage, true);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, isLoadingMore, hasMore, fetchCoupons]);
+
+  const refreshCoupons = () => {
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchCoupons(1, false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +159,7 @@ export default function AdminCouponsPage() {
         discountMAX: 0,
         expiryDate: "",
       });
-      fetchCoupons();
+      refreshCoupons();
     } catch {
       toast.error(t("saveError"));
     } finally {
@@ -114,7 +184,7 @@ export default function AdminCouponsPage() {
     try {
       await couponsApi.delete(id);
       toast.success(t("couponDeleted"));
-      fetchCoupons();
+      refreshCoupons();
     } catch {
       toast.error(t("deleteError"));
     }
@@ -261,15 +331,20 @@ export default function AdminCouponsPage() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
-          )}
+          {/* Infinite Scroll Trigger */}
+          <div ref={loadMoreRef} className="mt-6 py-4">
+            {isLoadingMore && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>{t("loadingMore")}</span>
+              </div>
+            )}
+            {!hasMore && coupons.length > 0 && (
+              <p className="text-center text-muted-foreground text-sm">
+                {t("noMoreItems")}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

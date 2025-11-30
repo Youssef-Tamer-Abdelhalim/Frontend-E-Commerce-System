@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { brandsApi } from "@/lib/api";
@@ -10,13 +10,12 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Pagination,
   Skeleton,
   Input,
   Modal,
 } from "@/components/ui";
 import { getImageUrl } from "@/lib/utils";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Brand {
@@ -30,8 +29,9 @@ export default function AdminBrandsPage() {
   const t = useTranslations("admin");
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [formData, setFormData] = useState({
@@ -39,26 +39,88 @@ export default function AdminBrandsPage() {
     image: null as File | null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchBrands = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await brandsApi.getAll({
-        page: currentPage,
-        limit: 10,
-      });
-      setBrands(response.data);
-      setTotalPages(response.paginationResult?.numberOfPages || 1);
-    } catch (error) {
-      console.error("Failed to fetch brands:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage]);
+  const fetchBrands = useCallback(
+    async (page: number, append: boolean = false) => {
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
 
+      try {
+        const response = await brandsApi.getAll({
+          page,
+          limit: 12,
+        });
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setBrands((prev) => {
+            const existingIds = new Set(prev.map((b) => b._id));
+            const newBrands = response.data.filter(
+              (b) => !existingIds.has(b._id)
+            );
+            return [...prev, ...newBrands];
+          });
+        } else {
+          setBrands(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch brands:", error);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // Initial load
   useEffect(() => {
-    fetchBrands();
+    fetchBrands(1, false);
   }, [fetchBrands]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchBrands(nextPage, true);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, isLoadingMore, hasMore, fetchBrands]);
+
+  const refreshBrands = () => {
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchBrands(1, false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +158,7 @@ export default function AdminBrandsPage() {
       setIsModalOpen(false);
       setEditingBrand(null);
       setFormData({ name: "", image: null });
-      fetchBrands();
+      refreshBrands();
     } catch {
       toast.error(t("saveError"));
     } finally {
@@ -116,7 +178,7 @@ export default function AdminBrandsPage() {
     try {
       await brandsApi.delete(id);
       toast.success(t("brandDeleted"));
-      fetchBrands();
+      refreshBrands();
     } catch {
       toast.error(t("deleteError"));
     }
@@ -161,50 +223,57 @@ export default function AdminBrandsPage() {
               {t("noBrands")}
             </p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {brands.map((brand) => (
-                <div
-                  key={brand._id}
-                  className="group p-4 border border-border rounded-lg hover:border-primary transition-colors"
-                >
-                  <div className="relative aspect-square rounded-lg overflow-hidden bg-muted mb-3">
-                    <SafeImage
-                      src={getImageUrl(brand.image)}
-                      alt={brand.name}
-                      fill
-                      className="object-contain p-4"
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => handleEdit(brand)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(brand._id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {brands.map((brand) => (
+                  <div
+                    key={brand._id}
+                    className="group p-4 border border-border rounded-lg hover:border-primary transition-colors"
+                  >
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-muted mb-3">
+                      <SafeImage
+                        src={getImageUrl(brand.image)}
+                        alt={brand.name}
+                        fill
+                        className="object-contain p-4"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          onClick={() => handleEdit(brand)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDelete(brand._id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
+                    <h3 className="text-center font-medium">{brand.name}</h3>
                   </div>
-                  <h3 className="text-center font-medium">{brand.name}</h3>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
 
-          {totalPages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
+              {/* Infinite Scroll Trigger */}
+              <div ref={loadMoreRef} className="mt-6 py-4">
+                {isLoadingMore && (
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>{t("loadingMore") || "Loading more..."}</span>
+                  </div>
+                )}
+                {!hasMore && brands.length > 0 && (
+                  <p className="text-center text-muted-foreground text-sm">
+                    {t("noMoreItems") || "No more items to load"}
+                  </p>
+                )}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

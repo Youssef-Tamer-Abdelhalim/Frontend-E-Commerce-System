@@ -13,7 +13,8 @@
     "sort": "ترتيب",
     "submit": "إرسال",
     "confirm": "تأكيد",
-    "linkCopied": "تم نسخ الرابط"
+    "linkCopied": "تم نسخ الرابط",
+    "noMoreResults": "لا يوجد المزيد من النتائج"
   },
   "nav": {
     "home": "الرئيسية",
@@ -72,6 +73,9 @@
     "sortRating": "الأعلى تقييماً",
     "sortBestSelling": "الأكثر مبيعاً",
     "noProducts": "لا توجد منتجات",
+    "applyFilters": "تطبيق الفلاتر",
+    "loadingMore": "جاري تحميل المزيد...",
+    "noMoreProducts": "لا يوجد المزيد من المنتجات",
     "outOfStock": "نفذ من المخزون",
     "inStock": "متوفر",
     "available": "متاح",
@@ -157,7 +161,9 @@
     "online": "دفع إلكتروني",
     "paidOn": "تم الدفع في {date}",
     "deliveredOn": "تم التسليم في {date}",
-    "total": "الإجمالي"
+    "total": "الإجمالي",
+    "loadingMore": "جاري تحميل المزيد...",
+    "noMoreOrders": "لا يوجد المزيد من الطلبات"
   },
   "wishlist": {
     "title": "قائمة المفضلة",
@@ -297,6 +303,8 @@
     "brandCreated": "تم إنشاء العلامة التجارية بنجاح",
     "brandUpdated": "تم تحديث العلامة التجارية بنجاح",
     "brandDeleted": "تم حذف العلامة التجارية بنجاح",
+    "loadingMore": "جاري تحميل المزيد...",
+    "noMoreItems": "لا يوجد المزيد من العناصر",
     "reviews": "التقييمات",
     "manageReviews": "إدارة تقييمات المنتجات",
     "allReviews": "جميع التقييمات",

@@ -18,6 +18,7 @@ export interface ApiResponse<T> {
   message?: string;
   results?: number;
   paginationResult?: PaginationResult;
+  pagination?: PaginationResult; // Some endpoints use 'pagination' instead of 'paginationResult'
   data: T;
 }
 

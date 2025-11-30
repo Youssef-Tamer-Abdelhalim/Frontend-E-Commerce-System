@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link, usePathname } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/stores/authStore";
 import { useCartStore } from "@/stores/cartStore";
@@ -25,11 +25,20 @@ import {
 export function Header() {
   const t = useTranslations();
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { items: cartItems } = useCartStore();
   const { items: wishlistItems } = useWishlistStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   const cartItemsCount = cartItems.reduce(
     (acc, item) => acc + item.quantity,
@@ -71,15 +80,49 @@ export function Header() {
           </nav>
 
           {/* Search Bar */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-4">
-            <Link
-              href="/products"
-              className="flex items-center w-full h-10 px-4 rounded-lg border border-input bg-background text-sm text-muted-foreground hover:border-primary transition-colors"
-            >
-              <Search className="h-4 w-4 me-2" />
-              {t("common.search")}...
-            </Link>
-          </div>
+          <form
+            onSubmit={handleSearch}
+            className="hidden lg:flex flex-1 max-w-md mx-4"
+          >
+            <div className="group relative flex items-center w-full h-11 rounded-full bg-muted/50 hover:bg-muted focus-within:bg-background focus-within:shadow-lg focus-within:shadow-primary/10 transition-all duration-300">
+              <Search className="h-4 w-4 ms-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={`${t("common.search")}...`}
+                className="flex-1 h-full px-3 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="me-2 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              )}
+              <button
+                type="submit"
+                className="h-8 px-4 me-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                {t("common.search")}
+              </button>
+            </div>
+          </form>
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">

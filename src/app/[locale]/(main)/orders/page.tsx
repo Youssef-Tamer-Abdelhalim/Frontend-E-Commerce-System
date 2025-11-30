@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { ordersApi } from "@/lib/api";
@@ -15,6 +15,7 @@ import {
   FiClock,
   FiShoppingBag,
   FiAlertCircle,
+  FiLoader,
 } from "react-icons/fi";
 
 export default function OrdersPage() {
@@ -23,28 +24,92 @@ export default function OrdersPage() {
   const { isAuthenticated, token } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchOrders = async () => {
+  const fetchOrders = useCallback(
+    async (page: number, append: boolean = false) => {
       if (!isAuthenticated || !token) {
         setLoading(false);
         return;
       }
 
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
       try {
-        const response = await ordersApi.getMyOrders();
-        setOrders(response.data || []);
+        const response = await ordersApi.getMyOrders({
+          page,
+          limit: 10,
+        });
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setOrders((prev) => {
+            const existingIds = new Set(prev.map((o) => o._id));
+            const newOrders = (response.data || []).filter(
+              (o) => !existingIds.has(o._id)
+            );
+            return [...prev, ...newOrders];
+          });
+        } else {
+          setOrders(response.data || []);
+        }
       } catch (err) {
         console.error("Failed to fetch orders:", err);
         setError(t("fetchError"));
       } finally {
         setLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [isAuthenticated, token, t]
+  );
+
+  // Initial load
+  useEffect(() => {
+    fetchOrders(1, false);
+  }, [fetchOrders]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (loading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchOrders(nextPage, true);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
-
-    fetchOrders();
-  }, [isAuthenticated, token, t]);
+  }, [loading, isLoadingMore, hasMore, fetchOrders]);
 
   const getStatusIcon = (order: Order) => {
     if (order.isDelivered) {
@@ -301,6 +366,21 @@ export default function OrdersPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Infinite Scroll Trigger */}
+      <div ref={loadMoreRef} className="mt-8 py-4">
+        {isLoadingMore && (
+          <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
+            <FiLoader className="h-5 w-5 animate-spin" />
+            <span>{t("loadingMore") || "Loading more..."}</span>
+          </div>
+        )}
+        {!hasMore && orders.length > 0 && (
+          <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+            {t("noMoreOrders") || "No more orders to load"}
+          </p>
+        )}
       </div>
     </div>
   );

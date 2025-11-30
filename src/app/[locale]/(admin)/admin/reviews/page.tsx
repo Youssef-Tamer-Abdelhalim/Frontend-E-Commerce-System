@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { reviewsApi } from "@/lib/api";
 import { Review } from "@/types/review";
@@ -10,39 +10,101 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Pagination,
   Skeleton,
 } from "@/components/ui";
 import { formatDate, getInitials } from "@/lib/utils";
-import { Trash2, Star, MessageSquare } from "lucide-react";
+import { Trash2, Star, MessageSquare, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminReviewsPage() {
   const t = useTranslations("admin");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchReviews = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await reviewsApi.getAll({
-        page: currentPage,
-        limit: 10,
-      });
-      setReviews(response.data);
-      setTotalPages(response.paginationResult?.numberOfPages || 1);
-    } catch (error) {
-      console.error("Failed to fetch reviews:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage]);
+  const fetchReviews = useCallback(
+    async (page: number, append: boolean = false) => {
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
 
+      try {
+        const response = await reviewsApi.getAll({
+          page,
+          limit: 12,
+        });
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setReviews((prev) => {
+            const existingIds = new Set(prev.map((r) => r._id));
+            const newReviews = response.data.filter(
+              (r) => !existingIds.has(r._id)
+            );
+            return [...prev, ...newReviews];
+          });
+        } else {
+          setReviews(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch reviews:", error);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // Initial load
   useEffect(() => {
-    fetchReviews();
+    fetchReviews(1, false);
   }, [fetchReviews]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchReviews(nextPage, true);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, isLoadingMore, hasMore, fetchReviews]);
+
+  const refreshReviews = () => {
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchReviews(1, false);
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm(t("confirmDelete"))) return;
@@ -50,7 +112,7 @@ export default function AdminReviewsPage() {
     try {
       await reviewsApi.delete(id);
       toast.success(t("reviewDeleted"));
-      fetchReviews();
+      refreshReviews();
     } catch {
       toast.error(t("deleteError"));
     }
@@ -176,15 +238,20 @@ export default function AdminReviewsPage() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
-          )}
+          {/* Infinite Scroll Trigger */}
+          <div ref={loadMoreRef} className="mt-6 py-4">
+            {isLoadingMore && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>{t("loadingMore")}</span>
+              </div>
+            )}
+            {!hasMore && reviews.length > 0 && (
+              <p className="text-center text-muted-foreground text-sm">
+                {t("noMoreItems")}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

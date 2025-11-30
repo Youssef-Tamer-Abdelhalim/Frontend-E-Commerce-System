@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { usersApi } from "@/lib/api";
 import { User } from "@/types/user";
@@ -10,45 +10,107 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Pagination,
   Skeleton,
   Input,
   Select,
 } from "@/components/ui";
 import { formatDate, getInitials } from "@/lib/utils";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminUsersPage() {
   const t = useTranslations("admin");
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchUsers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await usersApi.getAll({ page: currentPage, limit: 10 });
-      setUsers(response.data);
-      setTotalPages(response.paginationResult?.numberOfPages || 1);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage]);
+  const fetchUsers = useCallback(
+    async (page: number, append: boolean = false) => {
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
 
+      try {
+        const response = await usersApi.getAll({ page, limit: 12 });
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setUsers((prev) => {
+            const existingIds = new Set(prev.map((u) => u._id));
+            const newUsers = response.data.filter(
+              (u) => !existingIds.has(u._id)
+            );
+            return [...prev, ...newUsers];
+          });
+        } else {
+          setUsers(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch users:", error);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // Initial load
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1, false);
   }, [fetchUsers]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchUsers(nextPage, true);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, isLoadingMore, hasMore, fetchUsers]);
+
+  const refreshUsers = () => {
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchUsers(1, false);
+  };
 
   const handleUpdateRole = async (id: string, role: "user" | "admin") => {
     try {
       await usersApi.update(id, { role });
       toast.success(t("userUpdated"));
-      fetchUsers();
+      refreshUsers();
     } catch {
       toast.error(t("updateError"));
     }
@@ -60,7 +122,7 @@ export default function AdminUsersPage() {
     try {
       await usersApi.delete(id);
       toast.success(t("userDeleted"));
-      fetchUsers();
+      refreshUsers();
     } catch {
       toast.error(t("deleteError"));
     }
@@ -184,15 +246,20 @@ export default function AdminUsersPage() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
-          )}
+          {/* Infinite Scroll Trigger */}
+          <div ref={loadMoreRef} className="mt-6 py-4">
+            {isLoadingMore && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>{t("loadingMore")}</span>
+              </div>
+            )}
+            {!hasMore && users.length > 0 && (
+              <p className="text-center text-muted-foreground text-sm">
+                {t("noMoreItems")}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

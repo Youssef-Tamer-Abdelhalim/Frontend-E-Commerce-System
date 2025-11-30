@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { ordersApi } from "@/lib/api";
@@ -11,62 +11,124 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Pagination,
   Skeleton,
   Badge,
   Select,
 } from "@/components/ui";
 import { formatPrice, formatDate } from "@/lib/utils";
-import { Eye, Truck, CheckCircle } from "lucide-react";
+import { Eye, Truck, CheckCircle, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminOrdersPage() {
   const t = useTranslations("admin");
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchOrders = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params: { page: number; limit: number } = {
-        page: currentPage,
-        limit: 10,
-      };
-      const response = await ordersApi.getAll(params);
-      let filteredOrders = response.data;
-
-      // Client-side filtering since API might not support it
-      if (statusFilter !== "all") {
-        filteredOrders = filteredOrders.filter((order: Order) => {
-          if (statusFilter === "pending") return !order.isPaid;
-          if (statusFilter === "paid")
-            return order.isPaid && !order.isDelivered;
-          if (statusFilter === "delivered") return order.isDelivered;
-          return true;
-        });
+  const fetchOrders = useCallback(
+    async (page: number, append: boolean = false, filter: string = "all") => {
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
       }
 
-      setOrders(filteredOrders);
-      setTotalPages(response.paginationResult?.numberOfPages || 1);
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, statusFilter]);
+      try {
+        const params: { page: number; limit: number } = {
+          page,
+          limit: 12,
+        };
+        const response = await ordersApi.getAll(params);
+        let filteredOrders = response.data;
 
+        // Client-side filtering since API might not support it
+        if (filter !== "all") {
+          filteredOrders = filteredOrders.filter((order: Order) => {
+            if (filter === "pending") return !order.isPaid;
+            if (filter === "paid") return order.isPaid && !order.isDelivered;
+            if (filter === "delivered") return order.isDelivered;
+            return true;
+          });
+        }
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setOrders((prev) => {
+            const existingIds = new Set(prev.map((o) => o._id));
+            const newOrders = filteredOrders.filter(
+              (o) => !existingIds.has(o._id)
+            );
+            return [...prev, ...newOrders];
+          });
+        } else {
+          setOrders(filteredOrders);
+        }
+      } catch (error) {
+        console.error("Failed to fetch orders:", error);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // Initial load and filter change
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchOrders(1, false, statusFilter);
+  }, [fetchOrders, statusFilter]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchOrders(nextPage, true, statusFilter);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, isLoadingMore, hasMore, fetchOrders, statusFilter]);
+
+  const refreshOrders = () => {
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchOrders(1, false, statusFilter);
+  };
 
   const handleUpdatePaid = async (id: string) => {
     try {
       await ordersApi.updatePaidStatus(id);
       toast.success(t("orderUpdated"));
-      fetchOrders();
+      refreshOrders();
     } catch (error: unknown) {
       console.error("Update paid error:", error);
       const err = error as { response?: { data?: { message?: string } } };
@@ -78,7 +140,7 @@ export default function AdminOrdersPage() {
     try {
       await ordersApi.updateDeliveredStatus(id);
       toast.success(t("orderUpdated"));
-      fetchOrders();
+      refreshOrders();
     } catch (error: unknown) {
       console.error("Update delivered error:", error);
       const err = error as { response?: { data?: { message?: string } } };
@@ -222,15 +284,20 @@ export default function AdminOrdersPage() {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="mt-6">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
-          )}
+          {/* Infinite Scroll Trigger */}
+          <div ref={loadMoreRef} className="mt-6 py-4">
+            {isLoadingMore && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>{t("loadingMore")}</span>
+              </div>
+            )}
+            {!hasMore && orders.length > 0 && (
+              <p className="text-center text-muted-foreground text-sm">
+                {t("noMoreItems")}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

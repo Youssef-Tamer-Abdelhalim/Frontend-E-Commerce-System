@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { categoriesApi } from "@/lib/api";
@@ -9,25 +9,91 @@ import { SafeImage } from "@/components/ui/SafeImage";
 import { Skeleton } from "@/components/ui";
 import { Breadcrumb } from "@/components/layout";
 import { getImageUrl } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function CategoriesPage() {
   const t = useTranslations();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    async function fetchCategories() {
+  const fetchCategories = useCallback(
+    async (page: number, append: boolean = false) => {
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
       try {
-        const response = await categoriesApi.getAll({ limit: 50 });
-        setCategories(response.data);
+        const response = await categoriesApi.getAll({
+          page,
+          limit: 20,
+        });
+
+        const totalPages =
+          response.paginationResult?.numberOfPages ||
+          response.pagination?.numberOfPages ||
+          1;
+        setHasMore(page < totalPages);
+
+        if (append) {
+          setCategories((prev) => {
+            const existingIds = new Set(prev.map((c) => c._id));
+            const newCategories = response.data.filter(
+              (c) => !existingIds.has(c._id)
+            );
+            return [...prev, ...newCategories];
+          });
+        } else {
+          setCategories(response.data);
+        }
       } catch (error) {
         console.error("Failed to fetch categories:", error);
       } finally {
         setIsLoading(false);
+        setIsLoadingMore(false);
       }
+    },
+    []
+  );
+
+  // Initial load
+  useEffect(() => {
+    fetchCategories(1, false);
+  }, [fetchCategories]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (isLoading || isLoadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          setCurrentPage((prev) => {
+            const nextPage = prev + 1;
+            fetchCategories(nextPage, true);
+            return nextPage;
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
     }
-    fetchCategories();
-  }, []);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [isLoading, isLoadingMore, hasMore, fetchCategories]);
 
   const breadcrumbItems = [{ label: t("nav.categories") }];
 
@@ -79,6 +145,23 @@ export default function CategoriesPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Infinite Scroll Trigger */}
+      {!isLoading && (
+        <div ref={loadMoreRef} className="mt-8 py-4">
+          {isLoadingMore && (
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>{t("common.loading")}</span>
+            </div>
+          )}
+          {!hasMore && categories.length > 0 && (
+            <p className="text-center text-muted-foreground text-sm">
+              {t("common.noMoreResults") || "No more categories to load"}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -6,7 +6,7 @@ import { categoriesApi, brandsApi } from "@/lib/api";
 import { useFiltersStore } from "@/stores/filtersStore";
 import { Button, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, X, SlidersHorizontal } from "lucide-react";
 
 interface CategoryData {
   _id: string;
@@ -38,6 +38,7 @@ export function ProductsFilters() {
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [brands, setBrands] = useState<BrandData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
     brands: true,
@@ -63,6 +64,18 @@ export function ProductsFilters() {
     fetchFiltersData();
   }, [fetchFiltersData]);
 
+  // Prevent body scroll when mobile filters open
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMobileOpen]);
+
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -76,21 +89,35 @@ export function ProductsFilters() {
     (priceMin !== null && priceMin > 0) ||
     (priceMax !== null && priceMax < 10000);
 
+  const activeFiltersCount = [
+    selectedCategory,
+    selectedBrand,
+    priceMin !== null && priceMin > 0 ? priceMin : null,
+    priceMax !== null && priceMax < 10000 ? priceMax : null,
+  ].filter(Boolean).length;
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-32" />
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-6 w-full" />
-          ))}
+      <>
+        {/* Mobile Filter Button */}
+        <div className="lg:hidden mb-4">
+          <Skeleton className="h-10 w-full" />
         </div>
-      </div>
+        {/* Desktop Skeleton */}
+        <div className="hidden lg:block space-y-6">
+          <Skeleton className="h-8 w-32" />
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-6 w-full" />
+            ))}
+          </div>
+        </div>
+      </>
     );
   }
 
-  return (
-    <div className="space-y-6 bg-card rounded-xl border border-border p-4">
+  const FiltersContent = () => (
+    <>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">{t("filters")}</h2>
@@ -216,6 +243,70 @@ export function ProductsFilters() {
           </div>
         )}
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Filter Button */}
+      <div className="lg:hidden mb-4">
+        <Button
+          variant="outline"
+          className="w-full justify-between"
+          onClick={() => setIsMobileOpen(true)}
+        >
+          <span className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4" />
+            {t("filters")}
+          </span>
+          {activeFiltersCount > 0 && (
+            <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">
+              {activeFiltersCount}
+            </span>
+          )}
+        </Button>
+      </div>
+
+      {/* Mobile Filters Modal */}
+      {isMobileOpen && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden"
+            onClick={() => setIsMobileOpen(false)}
+          />
+          {/* Panel */}
+          <div className="fixed inset-y-0 start-0 z-50 w-full max-w-xs bg-card shadow-xl lg:hidden overflow-y-auto">
+            {/* Mobile Header */}
+            <div className="sticky top-0 flex items-center justify-between p-4 border-b border-border bg-card">
+              <h2 className="font-semibold">{t("filters")}</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsMobileOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            {/* Mobile Content */}
+            <div className="p-4 space-y-6">
+              <FiltersContent />
+            </div>
+            {/* Mobile Footer */}
+            <div className="sticky bottom-0 p-4 border-t border-border bg-card">
+              <Button className="w-full" onClick={() => setIsMobileOpen(false)}>
+                {t("applyFilters")}{" "}
+                {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Desktop Filters */}
+      <div className="hidden lg:block space-y-6 bg-card rounded-xl border border-border p-4">
+        <FiltersContent />
+      </div>
+    </>
   );
 }
