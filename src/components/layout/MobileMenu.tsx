@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/stores/authStore";
@@ -72,23 +73,23 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       ]
     : [];
 
-  return (
+  const menuContent = (
     <>
       {/* Overlay - click anywhere outside to close */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 md:hidden"
+        className="fixed inset-0 z-100 md:hidden bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Menu Panel */}
       <div
         className={cn(
-          "fixed inset-y-0 start-0 z-60 w-full max-w-xs shadow-2xl md:hidden",
+          "fixed inset-y-0 start-0 z-110 w-full max-w-xs shadow-2xl md:hidden",
           "bg-background border-e border-border",
-          "transform transition-transform duration-300 ease-in-out",
+          "transform transition-transform duration-300 ease-in-out ",
           isOpen
-            ? "translate-x-0 rtl:translate-x-0"
-            : "-translate-x-full rtl:translate-x-full"
+            ? "translate-x-0 rtl:translate-x-0 "
+            : "-translate-x-full rtl:translate-x-full "
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -211,4 +212,11 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       </div>
     </>
   );
+
+  // Use portal to render outside of header's stacking context
+  if (typeof document !== "undefined") {
+    return createPortal(menuContent, document.body);
+  }
+
+  return menuContent;
 }

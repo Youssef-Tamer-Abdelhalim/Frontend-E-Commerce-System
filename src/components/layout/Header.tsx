@@ -82,16 +82,17 @@ export function Header() {
           {/* Search Bar */}
           <form
             onSubmit={handleSearch}
-            className="hidden lg:flex flex-1 max-w-md mx-4"
+            className="hidden lg:flex flex-1 max-w-md mx-4 group-focus:border-primary border-2 border-transparent focus-within:border-primary rounded-full"
           >
             <div className="group relative flex items-center w-full h-11 rounded-full bg-muted/50 hover:bg-muted focus-within:bg-background focus-within:shadow-lg focus-within:shadow-primary/10 transition-all duration-300">
-              <Search className="h-4 w-4 ms-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Search className="h-4 w-4 ms-4 text-muted-foreground group-focus-within:text-primary transition-colors " />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={`${t("common.search")}...`}
-                className="flex-1 h-full px-3 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                className="flex-1 h-full px-3 bg-transparent text-sm outline-none placeholder:text-muted-foreground border-0 ring-0 focus:border-0 focus:ring-0 focus:outline-none"
+                style={{ border: "none", outline: "none", boxShadow: "none" }}
               />
               {searchQuery && (
                 <button
