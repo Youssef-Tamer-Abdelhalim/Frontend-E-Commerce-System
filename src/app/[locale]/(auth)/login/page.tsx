@@ -48,13 +48,23 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const response = await authApi.login(data);
-      const { token, user } = response.data;
-      setToken(token);
+      const { accessToken, user } = response.data;
+      setToken(accessToken);
       setUser(user);
       toast.success(t("loginSuccess"));
       router.push("/");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
+      const err = error as { response?: { status?: number; data?: { message?: string } } };
+      
+      // Handle 403 - Email not verified
+      if (err.response?.status === 403) {
+        // Store email for verification page
+        useAuthStore.getState().setPendingVerificationEmail(data.email);
+        toast.error(t("emailNotVerified"));
+        router.push("/verify-email");
+        return;
+      }
+      
       toast.error(err.response?.data?.message || t("loginError"));
     } finally {
       setIsLoading(false);

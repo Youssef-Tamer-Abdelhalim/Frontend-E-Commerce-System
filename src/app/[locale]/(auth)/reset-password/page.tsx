@@ -73,9 +73,9 @@ export default function ResetPasswordPage() {
       // Clear the stored email
       sessionStorage.removeItem("resetEmail");
 
-      // If token is returned, log the user in
-      if (response.token) {
-        setToken(response.token);
+      // If accessToken is returned, log the user in
+      if (response.accessToken) {
+        setToken(response.accessToken);
       }
 
       toast.success(t("passwordResetSuccess"));

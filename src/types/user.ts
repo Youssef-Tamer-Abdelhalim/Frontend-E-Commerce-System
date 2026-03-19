@@ -26,6 +26,15 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
+  confirmPassword: string;
+}
+
+export interface VerifyEmailData {
+  verificationCode: string;
+}
+
+export interface ResendVerificationData {
+  email: string;
 }
 
 export interface UpdateUserData {

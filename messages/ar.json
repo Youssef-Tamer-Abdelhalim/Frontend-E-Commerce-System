@@ -218,7 +218,17 @@
     "noAccount": "ليس لديك حساب؟",
     "haveAccount": "لديك حساب بالفعل؟",
     "logout": "تسجيل الخروج",
-    "logoutSuccess": "تم تسجيل الخروج بنجاح"
+    "logoutSuccess": "تم تسجيل الخروج بنجاح",
+    "verifyEmailTitle": "تأكيد البريد الإلكتروني",
+    "verifyEmailSubtitle": "أدخل الرمز المكون من 6 أرقام الذي أرسلناه إلى",
+    "enterVerificationCode": "أدخل رمز التأكيد",
+    "verificationCodeExpiry": "الرمز صالح لمدة 15 دقيقة",
+    "verifyEmail": "تأكيد البريد",
+    "emailVerified": "تم تأكيد البريد الإلكتروني بنجاح!",
+    "emailNotVerified": "يرجى تأكيد بريدك الإلكتروني أولاً",
+    "verificationCodeSent": "تم إرسال رمز التأكيد إلى بريدك الإلكتروني",
+    "verificationCodeResent": "تم إعادة إرسال رمز التأكيد",
+    "invalidVerificationCode": "رمز التأكيد غير صحيح أو منتهي الصلاحية"
   },
   "account": {
     "title": "حسابي",

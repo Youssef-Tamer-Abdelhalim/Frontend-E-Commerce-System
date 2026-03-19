@@ -45,7 +45,7 @@ export const useCartStore = create<CartStore>()((set) => ({
       set({
         items: response.data.cartItems,
         cartId: response.data._id,
-        numOfCartItems: response.numOfCartItems,
+        numOfCartItems: response.numberOfItems ?? response.numOfCartItems ?? 0,
         totalCartPrice: response.data.totalCartPrice,
         totalCartPriceAfterDiscount: response.data.totalCartPriceAfterDiscount || null,
         isLoading: false,
@@ -68,7 +68,7 @@ export const useCartStore = create<CartStore>()((set) => ({
       set({
         items: response.data.cartItems,
         cartId: response.data._id,
-        numOfCartItems: response.numOfCartItems,
+        numOfCartItems: response.numberOfItems ?? response.numOfCartItems ?? 0,
         totalCartPrice: response.data.totalCartPrice,
         totalCartPriceAfterDiscount: response.data.totalCartPriceAfterDiscount || null,
         isLoading: false,
@@ -88,7 +88,7 @@ export const useCartStore = create<CartStore>()((set) => ({
       const response = await cartApi.updateQuantity(itemId, { quantity });
       set({
         items: response.data.cartItems,
-        numOfCartItems: response.numOfCartItems,
+        numOfCartItems: response.numberOfItems ?? response.numOfCartItems ?? 0,
         totalCartPrice: response.data.totalCartPrice,
         totalCartPriceAfterDiscount: response.data.totalCartPriceAfterDiscount || null,
         isLoading: false,
@@ -125,7 +125,7 @@ export const useCartStore = create<CartStore>()((set) => ({
       const response = await cartApi.removeItem(itemId);
       set({
         items: response.data.cartItems,
-        numOfCartItems: response.numOfCartItems,
+        numOfCartItems: response.numberOfItems ?? response.numOfCartItems ?? 0,
         totalCartPrice: response.data.totalCartPrice,
         totalCartPriceAfterDiscount: response.data.totalCartPriceAfterDiscount || null,
         isLoading: false,

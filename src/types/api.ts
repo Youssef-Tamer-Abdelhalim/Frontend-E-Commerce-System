@@ -35,8 +35,34 @@ export interface AuthResponse {
   status: string;
   data: {
     user: User;
-    token: string;
+    accessToken: string;
   };
+}
+
+export interface SignupResponse {
+  status: string;
+  message: string;
+  data: {
+    user: {
+      _id: string;
+      name: string;
+      email: string;
+    };
+  };
+}
+
+export interface VerifyEmailResponse {
+  status: string;
+  message: string;
+  data: {
+    user: User;
+    accessToken: string;
+  };
+}
+
+export interface RefreshTokenResponse {
+  status: string;
+  accessToken: string;
 }
 
 // Re-export with different names to avoid conflicts
@@ -49,7 +75,8 @@ export type CartAPI = BaseCart;
 export interface CartResponse {
   status: string;
   message?: string;
-  numOfCartItems: number;
+  numOfCartItems?: number;
+  numberOfItems?: number;
   data: BaseCart;
 }
 

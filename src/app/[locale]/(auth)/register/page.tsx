@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import {
   Button,
@@ -32,11 +31,11 @@ const registerSchema = z
       .optional()
       .or(z.literal("")),
     password: z.string().min(6, "Password must be at least 6 characters"),
-    passwordConfirm: z.string(),
+    confirmPassword: z.string(),
   })
-  .refine((data) => data.password === data.passwordConfirm, {
+  .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
-    path: ["passwordConfirm"],
+    path: ["confirmPassword"],
   });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -44,7 +43,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const t = useTranslations("auth");
   const router = useRouter();
-  const { setUser, setToken } = useAuthStore();
+  const { register: registerUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -59,20 +58,14 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      // Send all fields the backend expects including confirmPassword
-      const registerData = {
+      await registerUser({
         name: data.name,
         email: data.email,
         password: data.password,
-        confirmPassword: data.passwordConfirm,
-        ...(data.phone && { phone: data.phone }),
-      };
-      const response = await authApi.register(registerData);
-      const { token, user } = response.data;
-      setToken(token);
-      setUser(user);
-      toast.success(t("registerSuccess"));
-      router.push("/");
+        confirmPassword: data.confirmPassword,
+      });
+      toast.success(t("verificationCodeSent"));
+      router.push("/verify-email");
     } catch (error: unknown) {
       const err = error as {
         response?: {
@@ -158,8 +151,8 @@ export default function RegisterPage() {
               type={showPassword ? "text" : "password"}
               placeholder={t("confirmPassword")}
               className="ps-10"
-              {...register("passwordConfirm")}
-              error={errors.passwordConfirm?.message}
+              {...register("confirmPassword")}
+              error={errors.confirmPassword?.message}
             />
           </div>
 

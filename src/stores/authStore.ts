@@ -9,14 +9,18 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  pendingVerificationEmail: string | null;
 }
 
 interface AuthActions {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => void;
+  verifyEmail: (code: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
+  logout: () => Promise<void>;
   setUser: (user: User) => void;
   setToken: (token: string) => void;
+  setPendingVerificationEmail: (email: string | null) => void;
   fetchUser: () => Promise<void>;
   clearError: () => void;
   hydrateAuth: () => void;
@@ -33,22 +37,24 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      pendingVerificationEmail: null,
 
       // Actions
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true, error: null });
         try {
           const response = await authApi.login(credentials);
-          const { token, user } = response.data;
+          const { accessToken, user } = response.data;
           
-          // Store token in localStorage for API client
-          localStorage.setItem('token', token);
+          // Store accessToken in localStorage for API client
+          localStorage.setItem('accessToken', accessToken);
           
           set({
             user,
-            token,
+            token: accessToken,
             isAuthenticated: true,
             isLoading: false,
+            pendingVerificationEmail: null,
           });
         } catch (error: unknown) {
           const errorMessage = error instanceof Error 
@@ -62,16 +68,12 @@ export const useAuthStore = create<AuthStore>()(
       register: async (data: RegisterData) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await authApi.signup(data);
-          const { token, user } = response.data;
+          await authApi.signup(data);
           
-          localStorage.setItem('token', token);
-          
+          // No token returned — user must verify email first
           set({
-            user,
-            token,
-            isAuthenticated: true,
             isLoading: false,
+            pendingVerificationEmail: data.email,
           });
         } catch (error: unknown) {
           const errorMessage = error instanceof Error 
@@ -82,13 +84,62 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      logout: () => {
-        localStorage.removeItem('token');
+      verifyEmail: async (code: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await authApi.verifyEmail({ verificationCode: code });
+          const { accessToken, user } = response.data;
+          
+          localStorage.setItem('accessToken', accessToken);
+          
+          set({
+            user,
+            token: accessToken,
+            isAuthenticated: true,
+            isLoading: false,
+            pendingVerificationEmail: null,
+          });
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : 'كود التحقق غير صحيح';
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      resendVerification: async () => {
+        const email = get().pendingVerificationEmail;
+        if (!email) return;
+
+        set({ isLoading: true, error: null });
+        try {
+          await authApi.resendVerification({ email });
+          set({ isLoading: false });
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : 'فشل في إعادة إرسال الكود';
+          set({ error: errorMessage, isLoading: false });
+          throw error;
+        }
+      },
+
+      logout: async () => {
+        try {
+          await authApi.logout();
+        } catch {
+          // Continue with local logout even if API call fails
+        }
+        
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('auth-storage');
         set({
           user: null,
           token: null,
           isAuthenticated: false,
           error: null,
+          pendingVerificationEmail: null,
         });
       },
 
@@ -97,12 +148,16 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       setToken: (token: string) => {
-        localStorage.setItem('token', token);
+        localStorage.setItem('accessToken', token);
         set({ token, isAuthenticated: true });
       },
 
+      setPendingVerificationEmail: (email: string | null) => {
+        set({ pendingVerificationEmail: email });
+      },
+
       fetchUser: async () => {
-        const token = get().token || localStorage.getItem('token');
+        const token = get().token || (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null);
         if (!token) return;
 
         set({ isLoading: true });
@@ -121,7 +176,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       hydrateAuth: () => {
-        const token = localStorage.getItem('token');
+        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
         if (token) {
           set({ token, isAuthenticated: true });
           get().fetchUser();
@@ -134,6 +189,7 @@ export const useAuthStore = create<AuthStore>()(
         token: state.token,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        pendingVerificationEmail: state.pendingVerificationEmail,
       }),
     }
   )
