@@ -84,12 +84,12 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       {/* Menu Panel */}
       <div
         className={cn(
-          "fixed inset-y-0 start-0 z-110 w-full max-w-xs shadow-2xl md:hidden",
-          "bg-background border-e border-border",
+          "fixed inset-y-0 end-0 z-110 w-full max-w-xs shadow-2xl md:hidden",
+          "bg-background border-s border-border",
           "transform transition-transform duration-300 ease-in-out ",
           isOpen
             ? "translate-x-0 rtl:translate-x-0 "
-            : "-translate-x-full rtl:translate-x-full "
+            : "translate-x-full rtl:-translate-x-full "
         )}
         onClick={(e) => e.stopPropagation()}
       >

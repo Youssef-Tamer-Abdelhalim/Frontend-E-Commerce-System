@@ -126,12 +126,16 @@ export function Header() {
           </form>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
-            <ThemeToggle />
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Theme Toggle — hidden on mobile, available in MobileMenu */}
+            <span className="hidden md:inline-flex">
+              <ThemeToggle />
+            </span>
 
-            {/* Language Switcher */}
-            <LanguageSwitcher />
+            {/* Language Switcher — hidden on mobile, available in MobileMenu */}
+            <span className="hidden md:inline-flex">
+              <LanguageSwitcher />
+            </span>
 
             {/* Wishlist */}
             {isAuthenticated && (
