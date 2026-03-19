@@ -31,7 +31,7 @@ export function ProductsContent({ searchParams }: ProductsContentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const observerRef = useRef<IntersectionObserver | null>(null);

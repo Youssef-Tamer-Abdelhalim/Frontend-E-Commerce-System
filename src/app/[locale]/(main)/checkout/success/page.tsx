@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -13,15 +13,15 @@ function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const { resetCart } = useCartStore();
-  const [isCleared, setIsCleared] = useState(false);
+  const hasClearedRef = useRef(false);
 
   useEffect(() => {
-    // Clear the cart after successful payment
-    if (!isCleared) {
-      resetCart();
-      setIsCleared(true);
-    }
-  }, [resetCart, isCleared]);
+    if (hasClearedRef.current) return;
+
+    // Clear the cart once after successful payment.
+    resetCart();
+    hasClearedRef.current = true;
+  }, [resetCart]);
 
   return (
     <div className="container mx-auto px-4 py-16">
