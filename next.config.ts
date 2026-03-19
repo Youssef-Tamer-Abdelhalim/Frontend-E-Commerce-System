@@ -6,8 +6,12 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig: NextConfig = {
   /* config options here */
   images: {
-    unoptimized: true, // Disable image optimization to avoid 403 errors from external sources
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
       {
         protocol: 'http',
         hostname: 'localhost',

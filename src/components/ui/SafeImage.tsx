@@ -15,6 +15,7 @@ export function SafeImage({
   fallbackSrc = "/images/placeholder.svg",
   className,
   disableCache = false,
+  sizes,
   ...props
 }: SafeImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
@@ -22,19 +23,26 @@ export function SafeImage({
   const sourceValue = typeof src === "string" ? src : null;
   const hasError = Boolean(sourceValue && failedSrc === sourceValue);
 
-  // Add cache buster to backend images if disableCache is true
+  // Determine if this is a Cloudinary URL
+  const isCloudinary = Boolean(sourceValue && sourceValue.includes('res.cloudinary.com'));
+
+  // Default sizes for fill images to prevent Next.js warning
+  const hasFill = 'fill' in props && props.fill;
+  const resolvedSizes = sizes || (hasFill ? "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" : undefined);
+
+  // Add cache buster to backend images if disableCache is true (skip Cloudinary — versioned URLs)
   const imageSrc = useMemo(() => {
     if (hasError) return fallbackSrc;
     if (!sourceValue) return src;
 
-    // Only add cache buster to backend URLs
-    if (disableCache && sourceValue.includes("railway.app")) {
+    // Only add cache buster to non-Cloudinary backend URLs
+    if (disableCache && !isCloudinary && (sourceValue.includes("railway.app") || sourceValue.includes("localhost:8000"))) {
       const separator = sourceValue.includes("?") ? "&" : "?";
       return `${sourceValue}${separator}v=${cacheVersion}`;
     }
 
     return sourceValue;
-  }, [src, sourceValue, hasError, fallbackSrc, disableCache, cacheVersion]);
+  }, [src, sourceValue, hasError, fallbackSrc, disableCache, isCloudinary, cacheVersion]);
 
   return (
     <Image
@@ -43,7 +51,8 @@ export function SafeImage({
       src={imageSrc}
       alt={alt}
       className={cn(className)}
-      unoptimized
+      sizes={resolvedSizes}
+      unoptimized={!isCloudinary}
       onError={() => {
         if (sourceValue && failedSrc !== sourceValue) {
           setFailedSrc(sourceValue);

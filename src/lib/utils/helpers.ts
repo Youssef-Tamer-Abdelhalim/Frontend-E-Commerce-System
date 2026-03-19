@@ -1,16 +1,28 @@
 /**
- * Get backend URL for images
- * @param path - The image path
+ * Get image URL - handles Cloudinary, legacy backend, and local URLs
+ * 
+ * Priority:
+ * 1. Cloudinary URLs (res.cloudinary.com) → return as-is
+ * 2. Full external URLs (https://...) → return as-is
+ * 3. Localhost URLs → convert to production backend
+ * 4. Relative paths → prepend backend URL
+ * 
+ * @param path - The image path or URL
  * @param bustCache - Add cache buster to force refresh (default: false)
  */
 export function getImageUrl(path: string | undefined, bustCache: boolean = false): string {
   if (!path) return '/images/placeholder.svg';
   
+  let processedPath = path.trim();
+  
+  // 1. Cloudinary URLs — return directly (new backend March 2026)
+  if (processedPath.includes('res.cloudinary.com')) {
+    return processedPath;
+  }
+  
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://backend-easeshopping-system-production.up.railway.app';
   
-  let processedPath = path;
-  
-  // Handle localhost URLs (convert to production backend)
+  // 2. Handle localhost URLs from old data (convert to production backend)
   if (processedPath.includes('http://localhost:8000/')) {
     processedPath = processedPath.replace('http://localhost:8000/', '');
   }
@@ -18,25 +30,25 @@ export function getImageUrl(path: string | undefined, bustCache: boolean = false
     processedPath = processedPath.replace('http://localhost:8000', '');
   }
   
-  // Handle malformed URLs where external URL is embedded in path
+  // 3. Handle malformed URLs where external URL is embedded in path
   // e.g., "products/https://fakestoreapi.com/img/..."
   if (processedPath.includes('https://') && !processedPath.startsWith('https://')) {
     const httpsIndex = processedPath.indexOf('https://');
     processedPath = processedPath.substring(httpsIndex);
   }
   
-  // If it's already a full external URL (not localhost), use it directly
+  // 4. If it's already a full external URL, use it directly
   let url: string;
   if (processedPath.startsWith('http://') || processedPath.startsWith('https://')) {
     url = processedPath;
   } else {
-    // Remove leading slash if present
+    // Relative path — prepend backend URL (legacy uploads)
     const cleanPath = processedPath.startsWith('/') ? processedPath.slice(1) : processedPath;
     url = `${backendUrl}/${cleanPath}`;
   }
   
-  // Add cache buster if requested
-  if (bustCache) {
+  // Add cache buster if requested (skip for Cloudinary — they handle caching via version)
+  if (bustCache && !url.includes('res.cloudinary.com')) {
     const separator = url.includes('?') ? '&' : '?';
     url = `${url}${separator}t=${Date.now()}`;
   }
