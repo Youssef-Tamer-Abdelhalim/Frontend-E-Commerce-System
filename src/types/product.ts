@@ -43,6 +43,7 @@ export type UpdateProductData = Partial<CreateProductData>;
 export interface ProductFilters {
   keyword?: string;
   category?: string;
+  subCategory?: string;
   brand?: string;
   'price[gte]'?: number;
   'price[lte]'?: number;

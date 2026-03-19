@@ -21,6 +21,12 @@ import {
 import { ArrowLeft, Upload, X, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 
+interface SubCategoryItem {
+  _id: string;
+  name: string;
+  category: string | { _id: string; name: string };
+}
+
 interface Category {
   _id: string;
   name: string;
@@ -87,6 +93,9 @@ export default function EditProductPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategoryItem[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+  const [isLoadingSubCats, setIsLoadingSubCats] = useState(false);
   const [imageCover, setImageCover] = useState<File | string | null>(null);
   const [images, setImages] = useState<(File | string)[]>([]);
   const [colors, setColors] = useState<string[]>([]);
@@ -119,6 +128,30 @@ export default function EditProductPage() {
     fetchData();
   }, []);
 
+  // Fetch subcategories when category changes
+  const handleCategoryChange = async (categoryId: string) => {
+    setSelectedSubCategories([]); // reset subcategories on category change
+    if (!categoryId) {
+      setSubCategories([]);
+      return;
+    }
+    setIsLoadingSubCats(true);
+    try {
+      const res = await categoriesApi.getSubcategories(categoryId);
+      setSubCategories(res.data || []);
+    } catch {
+      setSubCategories([]);
+    } finally {
+      setIsLoadingSubCats(false);
+    }
+  };
+
+  const toggleSubCategory = (id: string) => {
+    setSelectedSubCategories((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
+
   // Fetch product data if editing
   const fetchProduct = useCallback(async () => {
     if (isNew) return;
@@ -128,18 +161,21 @@ export default function EditProductPage() {
       const response = await productsApi.getById(productId);
       const product = response.data;
 
+      // Determine category ID
+      const categoryId =
+        typeof product.category === "string"
+          ? product.category
+          : product.category && "_id" in product.category
+          ? product.category._id
+          : "";
+
       reset({
         title: product.title,
         description: product.description,
         quantity: product.quantity,
         price: product.price,
         priceAfterDiscount: product.priceAfterDiscount || undefined,
-        category:
-          typeof product.category === "string"
-            ? product.category
-            : product.category && "_id" in product.category
-            ? product.category._id
-            : "",
+        category: categoryId,
         brand:
           typeof product.brand === "string"
             ? product.brand
@@ -147,6 +183,27 @@ export default function EditProductPage() {
             ? product.brand._id
             : undefined,
       });
+
+      // Load subcategories for the product's category, then set selected ones
+      if (categoryId) {
+        try {
+          const subRes = await categoriesApi.getSubcategories(categoryId);
+          setSubCategories(subRes.data || []);
+
+          // Extract selected subCategory IDs from product data
+          const productSubCats = product.subCategory || [];
+          const selectedIds = productSubCats
+            .map((sc) => {
+              if (typeof sc === 'string') return sc;
+              if ('_id' in sc) return sc._id;
+              return null;
+            })
+            .filter((id): id is string => Boolean(id));
+          setSelectedSubCategories(selectedIds);
+        } catch {
+          // ignore subcategory load failure
+        }
+      }
 
       setImageCover(product.imageCover);
       setImages(product.images || []);
@@ -207,6 +264,7 @@ export default function EditProductPage() {
         colors: colors.length > 0 ? colors : undefined,
         brand: data.brand || undefined,
         priceAfterDiscount: data.priceAfterDiscount || undefined,
+        subCategory: selectedSubCategories.length > 0 ? selectedSubCategories : undefined,
       };
 
       if (isNew) {
@@ -305,7 +363,9 @@ export default function EditProductPage() {
                   {t("category")} *
                 </label>
                 <select
-                  {...register("category")}
+                  {...register("category", {
+                    onChange: (e) => handleCategoryChange(e.target.value),
+                  })}
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
                   <option value="">{t("selectCategory")}</option>
@@ -339,6 +399,45 @@ export default function EditProductPage() {
                 </select>
               </div>
             </div>
+
+            {/* SubCategories — shown only when a category with subcategories is selected */}
+            {subCategories.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  {t("subCategories") || "Sub Categories"}
+                  <span className="text-muted-foreground text-xs ms-2">
+                    ({t("optional") || "اختياري"})
+                  </span>
+                </label>
+                {isLoadingSubCats ? (
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-8 w-24 rounded-full bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {subCategories.map((sc) => {
+                      const isSelected = selectedSubCategories.includes(sc._id);
+                      return (
+                        <button
+                          key={sc._id}
+                          type="button"
+                          onClick={() => toggleSubCategory(sc._id)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-foreground border-border hover:border-primary"
+                          }`}
+                        >
+                          {sc.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

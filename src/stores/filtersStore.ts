@@ -13,6 +13,7 @@ type SortOption =
 interface FiltersState {
   keyword: string;
   category: string | null;
+  subCategory: string | null;
   brand: string | null;
   priceMin: number | null;
   priceMax: number | null;
@@ -25,6 +26,7 @@ interface FiltersState {
 interface FiltersActions {
   setKeyword: (keyword: string) => void;
   setCategory: (categoryId: string | null) => void;
+  setSubCategory: (subCategoryId: string | null) => void;
   setBrand: (brandId: string | null) => void;
   setPriceRange: (min: number | null, max: number | null) => void;
   setRating: (rating: number | null) => void;
@@ -40,6 +42,7 @@ type FiltersStore = FiltersState & FiltersActions;
 const initialState: FiltersState = {
   keyword: '',
   category: null,
+  subCategory: null,
   brand: null,
   priceMin: null,
   priceMax: null,
@@ -59,7 +62,12 @@ export const useFiltersStore = create<FiltersStore>()(
       },
 
       setCategory: (categoryId: string | null) => {
-        set({ category: categoryId, page: 1 });
+        // Reset subCategory when category changes
+        set({ category: categoryId, subCategory: null, page: 1 });
+      },
+
+      setSubCategory: (subCategoryId: string | null) => {
+        set({ subCategory: subCategoryId, page: 1 });
       },
 
       setBrand: (brandId: string | null) => {
@@ -104,6 +112,10 @@ export const useFiltersStore = create<FiltersStore>()(
 
         if (state.category) {
           params.category = state.category;
+        }
+
+        if (state.subCategory) {
+          params.subCategory = state.subCategory;
         }
 
         if (state.brand) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { categoriesApi, brandsApi } from "@/lib/api";
+import { categoriesApi, brandsApi, subcategoriesApi } from "@/lib/api";
 import { useFiltersStore } from "@/stores/filtersStore";
 import { Button, Skeleton } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,12 @@ interface CategoryData {
   name: string;
   slug: string;
   image?: string;
+}
+
+interface SubCategoryData {
+  _id: string;
+  name: string;
+  slug: string;
 }
 
 interface BrandData {
@@ -29,18 +35,23 @@ export function ProductsFilters() {
     priceMax,
     setPriceRange,
     category: selectedCategory,
+    subCategory: selectedSubCategory,
     brand: selectedBrand,
     setCategory,
+    setSubCategory,
     setBrand,
     resetFilters,
   } = useFiltersStore();
 
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [brands, setBrands] = useState<BrandData[]>([]);
+  const [subCategoriesList, setSubCategoriesList] = useState<SubCategoryData[]>([]);
+  const [isLoadingSubCats, setIsLoadingSubCats] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
+    subCategories: true,
     brands: true,
     price: true,
   });
@@ -59,6 +70,16 @@ export function ProductsFilters() {
       setIsLoading(false);
     }
   }, []);
+
+  // Fetch subcategories when category changes
+  useEffect(() => {
+    if (!selectedCategory) { setSubCategoriesList([]); return; }
+    setIsLoadingSubCats(true);
+    categoriesApi.getSubcategories(selectedCategory)
+      .then((res) => setSubCategoriesList(res.data || []))
+      .catch(() => setSubCategoriesList([]))
+      .finally(() => setIsLoadingSubCats(false));
+  }, [selectedCategory]);
 
   useEffect(() => {
     fetchFiltersData();
@@ -85,12 +106,14 @@ export function ProductsFilters() {
 
   const hasActiveFilters =
     selectedCategory !== null ||
+    selectedSubCategory !== null ||
     selectedBrand !== null ||
     (priceMin !== null && priceMin > 0) ||
     (priceMax !== null && priceMax < 10000);
 
   const activeFiltersCount = [
     selectedCategory,
+    selectedSubCategory,
     selectedBrand,
     priceMin !== null && priceMin > 0 ? priceMin : null,
     priceMax !== null && priceMax < 10000 ? priceMax : null,
@@ -166,6 +189,52 @@ export function ProductsFilters() {
           </div>
         )}
       </div>
+
+      {/* SubCategories — shown only when a category is selected and has subcategories */}
+      {selectedCategory && (subCategoriesList.length > 0 || isLoadingSubCats) && (
+        <div className="border-t border-border pt-4">
+          <button
+            onClick={() => toggleSection("subCategories")}
+            className="flex items-center justify-between w-full text-sm font-medium mb-3"
+          >
+            {t("subCategories") || "Sub Categories"}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                expandedSections.subCategories && "rotate-180"
+              )}
+            />
+          </button>
+          {expandedSections.subCategories && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {isLoadingSubCats ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-5 w-full rounded bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                subCategoriesList.map((sc) => (
+                  <label
+                    key={sc._id}
+                    className="flex items-center gap-2 cursor-pointer text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSubCategory === sc._id}
+                      onChange={() =>
+                        setSubCategory(selectedSubCategory === sc._id ? null : sc._id)
+                      }
+                      className="rounded border-input"
+                    />
+                    <span className="text-foreground">{sc.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Brands */}
       <div className="border-t border-border pt-4">
